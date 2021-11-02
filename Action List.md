@@ -30,7 +30,7 @@
 
 #### Database Access
 - [x] make a simple database structure with as few fields as possible
-- make a database structure that inherantly prevents duplicate records while preserving travel data(node duplicates, but no edge duplicates)
+- make a database structure that inherantly prevents duplicate records while preserving travel data(unique together constraint on point_a, point_b -> node duplicates, but no edge duplicates)
 
 ## Things I'm curious about that might impact flashgordon
 - Scrapy
