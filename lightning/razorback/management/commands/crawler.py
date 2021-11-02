@@ -34,9 +34,13 @@ class Command(BaseCommand):
 			signal.alarm(10)
 			print("Now entering " + link_obj.point_b)
 			try:
+				start = time.time()
 				page = requests.get(link_obj.point_b)
+				print("Time for request: " + str(time.time() - start))
 				signal.alarm(0)
+				start = time.time()
 				soup = BeautifulSoup(page.content, 'html.parser')
+				print("Time for bs4: " + str(time.time() - start))
 				links_a = soup.findAll('a')
 			except TimeOutException as ex:
 				print(ex)
@@ -47,9 +51,10 @@ class Command(BaseCommand):
 				print(str(e))
 				return
 			Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
-			print("Visited " + url)
+			# print("Visited " + url)
 			start = time.time()
 			new_links = []
+			start = time.time()
 			for link in links_a:
 				href = link.get('href')
 				if href == None:
@@ -75,10 +80,10 @@ class Command(BaseCommand):
 						new_links.append(Link(point_b=appended_link))
 				else:
 					return
-			print(str(time.time() - start))
+			print("Time for loop: " + str(time.time() - start))
 			start = time.time()
 			Link.objects.bulk_create(new_links)
-			print(str(time.time() - start))
+			print("Time for bulk_create: " + str(time.time() - start))
 			
 		if (Link.objects.first() == None):
 			x = int(input("how many urls do you want to seed? "))
@@ -97,6 +102,7 @@ class Command(BaseCommand):
 
 		break_check = len(Link.objects.filter(visited=False))
 		while break_check > 0:
+			start = time.time()
 			link = Link.objects.filter(visited=False).first()
 			if link:
 				try:
@@ -104,8 +110,9 @@ class Command(BaseCommand):
 					if not link.visited:
 						get_page_of_links(link)
 					else:
-						print("link #" + str(i) + " was already visited. Skipping...")
+						print("link " + str(link.id) + " was already visited. Skipping...")
 				except Exception as e:
 					break_check = len(Link.objects.filter(visited=False))
 			else:
 				break_check = len(Links.objects.filter(visited=False))
+			print("Time for loop: " + str(time.time() - start))
