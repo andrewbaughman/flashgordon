@@ -13,7 +13,7 @@
 - multithread and/or queue up parsing
 
 #### Database Access
-- save data in bulk
+- [x] save data in bulk
 - queue up data saves
 - use an alternative database (postgres, persistant redis, timescaledb)
 
