@@ -32,22 +32,24 @@ class Command(BaseCommand):
 		def get_page_of_links(link_obj):
 			signal.signal(signal.SIGALRM, alarm_handler)
 			signal.alarm(10)
-			print("Now entering " + link_obj['point_b'])
+			print("Now entering " + link_obj.point_b)
 			try:
-				page = requests.get(link_obj['point_b'])
+				page = requests.get(link_obj.point_b)
 				signal.alarm(0)
 				soup = BeautifulSoup(page.content, 'html.parser')
 				links_a = soup.findAll('a')
 			except TimeOutException as ex:
 				print(ex)
-				Link.objects.filter(point_b=link_obj['point_b']).update(visited=True)
+				Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
 				return
 			except Exception as e:
 				signal.alarm(0)
 				print(str(e))
 				return
-			Link.objects.filter(point_b=link_obj['point_b']).update(visited=True)
+			Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
 			print("Visited " + url)
+			start = time.time()
+			new_links = []
 			for link in links_a:
 				href = link.get('href')
 				if href == None:
@@ -57,23 +59,26 @@ class Command(BaseCommand):
 				elif ('#' in href) or ('@' in href):
 					continue
 				elif (href[0:7] == 'http://' or href[0:8] == 'https://' or href[0:4] == 'www.'):
-					if not link_obj['point_b'] is None:
-						Link.objects.create(point_b=href, point_a=Link.objects.get(id=link_obj['id']))
+					if not link_obj.point_b is None:
+						new_links.append(Link(point_b=href, point_a=link_obj))
 					else:
-						Link.objects.create(point_b=href)
+						new_links.append(Link(point_b=href))
 				elif (href):
 					if(loc_third_slash(url)):
 						new_url =  url[0:loc_third_slash(url)]
 						appended_link = new_url + href
 					else:
 						appended_link = url + href
-					if not link_obj['point_b'] is None:
-						Link.objects.create(point_b=href, point_a=Link.objects.get(id=link_obj['id']))
+					if not link_obj.point_b is None:
+						new_links.append(Link(point_b=appended_link, point_a=link_obj))
 					else:
-						Link.objects.create(point_b=href)
-
+						new_links.append(Link(point_b=appended_link))
 				else:
 					return
+			print(str(time.time() - start))
+			start = time.time()
+			Link.objects.bulk_create(new_links)
+			print(str(time.time() - start))
 			
 		if (Link.objects.first() == None):
 			x = int(input("how many urls do you want to seed? "))
@@ -97,7 +102,7 @@ class Command(BaseCommand):
 				try:
 					url = link.point_b
 					if not link.visited:
-						get_page_of_links(model_to_dict(link))
+						get_page_of_links(link)
 					else:
 						print("link #" + str(i) + " was already visited. Skipping...")
 				except Exception as e:
