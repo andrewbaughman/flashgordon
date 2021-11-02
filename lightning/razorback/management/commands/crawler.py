@@ -57,8 +57,8 @@ class Command(BaseCommand):
 				elif ('#' in href) or ('@' in href):
 					continue
 				elif (href[0:7] == 'http://' or href[0:8] == 'https://' or href[0:4] == 'www.'):
-					if link_obj['point_a']:
-						Link.objects.create(point_b=href, point_a=link_obj['point_a'])
+					if not link_obj['point_b'] is None:
+						Link.objects.create(point_b=href, point_a=Link.objects.get(id=link_obj['id']))
 					else:
 						Link.objects.create(point_b=href)
 				elif (href):
@@ -67,10 +67,11 @@ class Command(BaseCommand):
 						appended_link = new_url + href
 					else:
 						appended_link = url + href
-					if link['point_a']:
-						Link.objects.create(point_b=appended_link, point_a=link_obj['point_a'])
+					if not link_obj['point_b'] is None:
+						Link.objects.create(point_b=href, point_a=Link.objects.get(id=link_obj['id']))
 					else:
-						Link.objects.create(point_b=appended_link)
+						Link.objects.create(point_b=href)
+
 				else:
 					return
 			
@@ -90,9 +91,8 @@ class Command(BaseCommand):
 			print("resuming crawl.")
 
 		break_check = len(Link.objects.filter(visited=False))
-		i = Link.objects.filter(visited=False).first().id
 		while break_check > 0:
-			link = Link.objects.get(id=i)
+			link = Link.objects.filter(visited=False).first()
 			if link:
 				try:
 					url = link.point_b
@@ -104,5 +104,3 @@ class Command(BaseCommand):
 					break_check = len(Link.objects.filter(visited=False))
 			else:
 				break_check = len(Links.objects.filter(visited=False))
-			i = i + 1
-			print(i)
