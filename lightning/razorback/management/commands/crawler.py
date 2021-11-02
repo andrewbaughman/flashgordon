@@ -1,5 +1,5 @@
 import requests
-from bs4 import BeautifulSoup
+from lxml import html
 import json
 import time
 import signal
@@ -47,10 +47,10 @@ class Command(BaseCommand):
 				self.measurements.append([link_obj.point_a, link_obj.point_b, 'request', time.time() - start])
 				signal.alarm(0)
 				start = time.time()
-				soup = BeautifulSoup(page.content, 'html.parser')
+				tree = html.fromstring(page.content)
 				self.measurements.append([link_obj.point_a, link_obj.point_b, 'parse_content', time.time() - start])
 				start = time.time()
-				links_a = soup.findAll('a')
+				links_a = tree.xpath('//a/@href')
 			except TimeOutException as ex:
 				print(ex)
 				Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
@@ -62,13 +62,12 @@ class Command(BaseCommand):
 			start = time.time()
 			Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'update_unvisited', time.time() - start])
-			# print("Visited " + url)
+			print("Visited " + url)
 			start = time.time()
 			new_links = []
 			start = time.time()
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'find_links', time.time() - start])
-			for link in links_a:
-				href = link.get('href')
+			for href in links_a:
 				if href == None:
 					continue
 				elif len(href) < 3:
@@ -91,7 +90,9 @@ class Command(BaseCommand):
 					else:
 						new_links.append(Link(point_b=appended_link))
 				else:
+					print(href)
 					return
+			
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'process_links', time.time() - start])
 			start = time.time()
 			Link.objects.bulk_create(new_links)
