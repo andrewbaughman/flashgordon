@@ -13,7 +13,7 @@
 - multithread and/or queue up parsing
 
 #### Database Access
-- save data in bulk
+- [x] save data in bulk
 - queue up data saves
 - use an alternative database (postgres, persistant redis, timescaledb)
 
@@ -24,13 +24,13 @@
 - send requests through proxies to avoid getting blocked
 
 #### Parsing Responses
-- store link
+- [x] store link
 - get all information possible (store the whole website)
-- get just links from the website
+- [x] get just links from the website
 
 #### Database Access
-- make a simple database structure with as few fields as possible
-- make a database structure that inherantly prevents duplicate records while preserving travel data(node duplicates, but no edge duplicates)
+- [x] make a simple database structure with as few fields as possible
+- make a database structure that inherantly prevents duplicate records while preserving travel data(unique together constraint on point_a, point_b -> node duplicates, but no edge duplicates)
 
 ## Things I'm curious about that might impact flashgordon
 - Scrapy
