@@ -59,7 +59,9 @@ class Command(BaseCommand):
 				signal.alarm(0)
 				print(str(e))
 				return
+			start = time.time()
 			Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
+			self.measurements.append([link_obj.point_a, link_obj.point_b, 'update_unvisited', time.time() - start])
 			# print("Visited " + url)
 			start = time.time()
 			new_links = []
@@ -115,6 +117,7 @@ class Command(BaseCommand):
 		while break_check > 0:
 			start = time.time()
 			link = Link.objects.filter(visited=False).first()
+			self.measurements.append([link.point_a, link.point_b, 'first_unvisited', time.time() - start])
 			if link:
 				try:
 					url = link.point_b
