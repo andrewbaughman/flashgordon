@@ -17,6 +17,7 @@ def append_list_as_row(file_name, list_of_elem):
 
 class Command(BaseCommand):
 	measurements = [['point_a', 'point_b', 'process', 'duration']]
+	request_count = -1
 
 	def handle(self, *args, **options):
 		#https://code-maven.com/python-timeout
@@ -45,6 +46,7 @@ class Command(BaseCommand):
 				start = time.time()
 				page = requests.get(link_obj.point_b)
 				self.measurements.append([link_obj.point_a, link_obj.point_b, 'request', time.time() - start])
+				self.request_count = self.request_count + 1
 				signal.alarm(0)
 				start = time.time()
 				tree = html.fromstring(page.content)
@@ -114,7 +116,8 @@ class Command(BaseCommand):
 			print("resuming crawl.")
 
 		break_check = len(Link.objects.filter(visited=False))
-		analytics_save_time = time.time()
+		analytics_static_time = time.time()
+		analytics_dynamic_time = time.time()
 		while break_check > 0:
 			start = time.time()
 			link = Link.objects.filter(visited=False).first()
@@ -133,7 +136,10 @@ class Command(BaseCommand):
 			else:
 				break_check = len(Links.objects.filter(visited=False))
 			self.measurements.append([link.point_a, link.point_b, 'main_loop', time.time() - start])
-			if time.time() - analytics_save_time > 10:
+			if (time.time() - analytics_dynamic_time) > 10:
 				for measurement in self.measurements:
 					append_list_as_row('flashgordon_analytics.csv', measurement)
 					self.measurements = []
+				requests_per_second = self.request_count / (time.time() - analytics_static_time)
+				append_list_as_row('flashgordon_analytics.csv', [None,self.request_count,"Requests per second", requests_per_second])
+				analytics_dynamic_time = time.time()
