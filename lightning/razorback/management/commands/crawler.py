@@ -8,12 +8,31 @@ from django.core.management.base import BaseCommand
 from django.forms.models import model_to_dict
 from csv import writer
 from itertools import islice
+import psycopg2
 
 # https://thispointer.com/python-how-to-append-a-new-row-to-an-existing-csv-file/
 def append_list_as_row(file_name, list_of_elem):
     with open(file_name, 'a+', newline='') as write_obj:
         csv_writer = writer(write_obj)
         csv_writer.writerow(list_of_elem)
+
+def insert_link_list(link_list):
+	"""
+	Insert many Links into the the Link table
+	"""
+	sql = "INSERT INTO razorback_link(id, point_b, visited, point_a_id) VALUES(%s)"
+	conn = None
+	try:
+		conn = psycopg2.connect(dbname="razorback_link", user="flash", password="password")
+		cur = conn.cursor()
+		cur.executemany(sql, link_list)
+		conn.commit()
+		cur.close()
+	except (Exception, psycopg2.DatabaseError) as error:
+		print(error)
+	finally:
+		if conn is not None:
+			conn.close()
 
 
 class Command(BaseCommand):
@@ -81,9 +100,9 @@ class Command(BaseCommand):
 					continue
 				elif (href[0:7] == 'http://' or href[0:8] == 'https://' or href[0:4] == 'www.'):
 					if not link_obj.point_b is None:
-						new_links.append(Link(point_b=href, point_a=link_obj))
+						new_links.append([href, False, link_obj.id])
 					else:
-						new_links.append(Link(point_b=href))
+						new_links.append([href, False, None])
 				elif (href):
 					if(loc_third_slash(url)):
 						new_url =  url[0:loc_third_slash(url)]
@@ -91,17 +110,18 @@ class Command(BaseCommand):
 					else:
 						appended_link = url + href
 					if not link_obj.point_b is None:
-						new_links.append(Link(point_b=appended_link, point_a=link_obj))
+						new_links.append([appended_link, False, link_obj.id])
 					else:
-						new_links.append(Link(point_b=appended_link))
+						new_links.append([appended_link, False, None])
 				else:
 					print(href)
 					return
 			
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'process_links', time.time() - start])
 			start = time.time()
-			for link in new_links:
-				Link.objects.create(link)
+			# for link in new_links:
+			# 	Link.objects.create(link)
+			insert_link_list(new_links)
 			# Link.objects.bulk_create(new_links)
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'save_data', time.time() - start])
 			
