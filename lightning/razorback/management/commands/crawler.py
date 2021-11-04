@@ -12,24 +12,50 @@ import psycopg2
 
 # https://thispointer.com/python-how-to-append-a-new-row-to-an-existing-csv-file/
 def append_list_as_row(file_name, list_of_elem):
-    with open(file_name, 'a+', newline='') as write_obj:
-        csv_writer = writer(write_obj)
-        csv_writer.writerow(list_of_elem)
+	with open(file_name, 'a+', newline='') as write_obj:
+		csv_writer = writer(write_obj)
+		csv_writer.writerow(list_of_elem)
+
+def insert_link(link):
+	""" insert a new link into the Link table """
+	sql = """INSERT INTO razorback_link(point_b, visited, point_a_id) VALUES(%s) VALUES(%s) RETURNING id;"""
+	conn = None
+	id = None
+	try:
+		# connect to the PostgreSQL database
+		conn = psycopg2.connect(dbname="lightning_db", user="flash", password="password")
+		# create a new cursor
+		cur = conn.cursor()
+		# execute the INSERT statement
+		cur.execute(sql, (link))
+		# get the generated id back
+		id = cur.fetchone()[0]
+		# commit the changes to the database
+		conn.commit()
+		# close communication with the database
+		cur.close()
+	except (Exception, psycopg2.DatabaseError) as error:
+		print(error)
+		print(link)
+	finally:
+		if conn is not None:
+			conn.close()
 
 def insert_link_list(link_list):
 	"""
 	Insert many Links into the the Link table
 	"""
-	sql = "INSERT INTO razorback_link(id, point_b, visited, point_a_id) VALUES(%s)"
+	sql = "INSERT INTO razorback_link(point_b, visited, point_a_id) VALUES(%s)"
 	conn = None
 	try:
-		conn = psycopg2.connect(dbname="razorback_link", user="flash", password="password")
+		conn = psycopg2.connect(dbname="lightning_db", user="flash", password="password")
 		cur = conn.cursor()
 		cur.executemany(sql, link_list)
 		conn.commit()
 		cur.close()
 	except (Exception, psycopg2.DatabaseError) as error:
 		print(error)
+		print(link_list)
 	finally:
 		if conn is not None:
 			conn.close()
@@ -121,6 +147,8 @@ class Command(BaseCommand):
 			start = time.time()
 			# for link in new_links:
 			# 	Link.objects.create(link)
+			# for link in new_links:
+			# 	insert_link(link)
 			insert_link_list(new_links)
 			# Link.objects.bulk_create(new_links)
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'save_data', time.time() - start])
