@@ -7,6 +7,7 @@ from razorback.models import Link
 from django.core.management.base import BaseCommand
 from django.forms.models import model_to_dict
 from csv import writer
+from itertools import islice
 
 # https://thispointer.com/python-how-to-append-a-new-row-to-an-existing-csv-file/
 def append_list_as_row(file_name, list_of_elem):
@@ -99,7 +100,9 @@ class Command(BaseCommand):
 			
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'process_links', time.time() - start])
 			start = time.time()
-			Link.objects.bulk_create(new_links)
+			for link in new_links:
+				Link.objects.create(link)
+			# Link.objects.bulk_create(new_links)
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'save_data', time.time() - start])
 			
 		if (Link.objects.first() == None):
