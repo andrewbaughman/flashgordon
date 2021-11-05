@@ -102,7 +102,7 @@ class Command(BaseCommand):
 				print(str(e))
 				return
 			start = time.time()
-			Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
+			Link.objects.filter(point_b=link_obj.point_b).update(visited=True, content=page.content)
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'update_unvisited', time.time() - start])
 			print("Visited " + url)
 			start = time.time()
