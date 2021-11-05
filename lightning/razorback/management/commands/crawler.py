@@ -18,25 +18,18 @@ def append_list_as_row(file_name, list_of_elem):
 
 def insert_link(link):
 	""" insert a new link into the Link table """
-	sql = """INSERT INTO razorback_link(point_b, visited, point_a_id) VALUES(%s) VALUES(%s) RETURNING id;"""
+	sql = """INSERT INTO razorback_link(point_b, visited, point_a_id) VALUES(\'{point_b}\',{visited},{point_a_id}) RETURNING id;"""
 	conn = None
 	id = None
 	try:
-		# connect to the PostgreSQL database
 		conn = psycopg2.connect(dbname="lightning_db", user="flash", password="password")
-		# create a new cursor
 		cur = conn.cursor()
-		# execute the INSERT statement
-		cur.execute(sql, (link))
-		# get the generated id back
+		cur.execute(sql.format(**link))
 		id = cur.fetchone()[0]
-		# commit the changes to the database
 		conn.commit()
-		# close communication with the database
 		cur.close()
 	except (Exception, psycopg2.DatabaseError) as error:
 		print(error)
-		print(link)
 	finally:
 		if conn is not None:
 			conn.close()
@@ -45,7 +38,7 @@ def insert_link_list(link_list):
 	"""
 	Insert many Links into the the Link table
 	"""
-	sql = "INSERT INTO razorback_link(point_b, visited, point_a_id) VALUES(%s)"
+	sql = """INSERT INTO razorback_link(point_b, visited, point_a_id) VALUES(%s,%s,%s)"""
 	conn = None
 	try:
 		conn = psycopg2.connect(dbname="lightning_db", user="flash", password="password")
@@ -55,7 +48,6 @@ def insert_link_list(link_list):
 		cur.close()
 	except (Exception, psycopg2.DatabaseError) as error:
 		print(error)
-		print(link_list)
 	finally:
 		if conn is not None:
 			conn.close()
@@ -117,6 +109,7 @@ class Command(BaseCommand):
 			new_links = []
 			start = time.time()
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'find_links', time.time() - start])
+			links_a = list(dict.fromkeys(links_a))
 			for href in links_a:
 				if href == None:
 					continue
@@ -145,13 +138,9 @@ class Command(BaseCommand):
 			
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'process_links', time.time() - start])
 			start = time.time()
-			# for link in new_links:
-			# 	Link.objects.create(link)
-			# for link in new_links:
-			# 	insert_link(link)
 			insert_link_list(new_links)
-			# Link.objects.bulk_create(new_links)
 			self.measurements.append([link_obj.point_a, link_obj.point_b, 'save_data', time.time() - start])
+			
 			
 		if (Link.objects.first() == None):
 			x = int(input("how many urls do you want to seed? "))
