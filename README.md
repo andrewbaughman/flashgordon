@@ -22,7 +22,16 @@ Any changes made to flashgordon should measurably improve its performance.
 
 ## Installation and First crawl
 
-1. Clone the repository
-2. Install postgres with `sudo apt install postgresql`
-3. Configure postgres
-4. `python3 manage.py crawler`
+1. Install postgres with `sudo apt install postgresql`
+2. Start postgres with `systemctl services postgres start`
+3. Create role and database
+  1. `sudo su - postgres`
+  2. `psql`
+  3. `create role flash with login password ‘password’; grant all priveleges on database lighting_db to flash; alter database lighting_db owner to flash;`
+4. Clone the repository
+5. `pip3 install -r requirements.txt`
+6. `pip3 install psycopg2` if it's not in the requirements
+7. Configure postgres
+8. `python3 manage.py migrate`
+9. `python3 manage.py crawler`
+
