@@ -23,6 +23,6 @@ Any changes made to flashgordon should measurably improve its performance.
 ## Installation and First crawl
 
 1. Clone the repository
-2. Install postgres with `sudo apt install postgres`
+2. Install postgres with `sudo apt install postgresql`
 3. Configure postgres
 4. `python3 manage.py crawler`
