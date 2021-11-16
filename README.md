@@ -19,3 +19,10 @@ Any changes made to the project should clearly improve its integrity.
 All processes within flashgordon should be fast and require as little work as possible to complete. 
 
 Any changes made to flashgordon should measurably improve its performance.
+
+## Installation and First crawl
+
+1. Clone the repository
+2. Install postgres with `sudo apt install postgres`
+3. Configure postgres
+4. `python3 manage.py crawler`
