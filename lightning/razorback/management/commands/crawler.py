@@ -9,6 +9,8 @@ from django.forms.models import model_to_dict
 from csv import writer
 from itertools import islice
 import psycopg2
+import tldextract
+# import requests_cache DNS Caching decreased performance slightly, but might be helpful in the future. 
 
 # https://thispointer.com/python-how-to-append-a-new-row-to-an-existing-csv-file/
 def append_list_as_row(file_name, list_of_elem):
@@ -59,22 +61,6 @@ class TimeOutException(Exception):
 def alarm_handler(signum, frame):
 	print("timeout has occured")
 	raise TimeOutException()
-
-def request_page(link_obj):
-	signal.signal(signal.SIGALRM, alarm_handler)
-	signal.alarm(10)
-	try:
-		print("Now entering " + link_obj.point_b)
-		return requests.get(link_obj.point_b)
-		signal.alarm(0)
-	except TimeOutException as ex:
-		print(ex)
-		Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
-		return
-	except Exception as e:
-		signal.alarm(0)
-		print(str(e))
-		return
 
 # from https://www.geeksforgeeks.org/python-ways-to-find-nth-occurrence-of-substring-in-a-string/
 def loc_third_slash(link):
@@ -129,7 +115,26 @@ class Command(BaseCommand):
 	measurements = [['label', 'context', 'data']]
 	requests_attempted = 0
 	requests_succeeded = 0
+	session = requests.Session()
+	# session = requests_cache.CachedSession() DNS Caching
 
+	def request_page(self, link_obj):
+		signal.signal(signal.SIGALRM, alarm_handler)
+		signal.alarm(10)
+		try:
+			print("Now entering " + link_obj.point_b)
+			response = self.session.get(link_obj.point_b)
+			return response
+			signal.alarm(0)
+		except TimeOutException as ex:
+			print(ex)
+			Link.objects.filter(point_b=link_obj.point_b).update(visited=True)
+			return
+		except Exception as e:
+			signal.alarm(0)
+			print(str(e))
+			return
+	
 	def handle(self, *args, **options):
 		if (Link.objects.first() == None):
 			x = int(input("how many urls do you want to seed? "))
@@ -160,9 +165,9 @@ class Command(BaseCommand):
 					if not link.visited:
 						start = time.time()
 						self.requests_attempted = self.requests_attempted + 1
-						response = request_page(link)
+						response = self.request_page(link)
 						self.requests_succeeded = self.requests_succeeded + 1
-						self.measurements.append(['request_page', {'link_object': link}, time.time() - start])
+						self.measurements.append(['request_page', {'destination': link.point_b, 'source': link.point_a}, time.time() - start])
 						start = time.time()
 						new_links, content = parse_response(link, response)
 						self.measurements.append(['parse_response', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
