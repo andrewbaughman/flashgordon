@@ -3,14 +3,16 @@
 ## Performance
 
 #### [Requests](https://blog.greendeck.co/beyond-requests/) 
-- multithread and/or queue up requests
-- reuse request sessions
-- use DNS caching
+- multiprocessing
+- multithreading
+- [x] reuse request sessions
+- (tried to no improvement) use DNS caching
 - use a difference requests library
 
 #### Parsing Responses
 - [x] use a bs4 alternative (lxml or direct string manipulation)
-- multithread and/or queue up parsing
+- multiprocessing
+- multithread
 
 #### Database Access
 - [x] save data in bulk
