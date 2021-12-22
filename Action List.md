@@ -3,14 +3,16 @@
 ## Performance
 
 #### [Requests](https://blog.greendeck.co/beyond-requests/) 
-- multithread and/or queue up requests
-- reuse request sessions
-- use DNS caching
+- multiprocessing
+- multithreading
+- [x] reuse request sessions
+- (tried to no improvement) use DNS caching
 - use a difference requests library
 
 #### Parsing Responses
-- use a bs4 alternative (lxml or direct string manipulation)
-- multithread and/or queue up parsing
+- [x] use a bs4 alternative (lxml or direct string manipulation)
+- multiprocessing
+- multithread
 
 #### Database Access
 - [x] save data in bulk
@@ -25,12 +27,12 @@
 
 #### Parsing Responses
 - [x] store link
-- get all information possible (store the whole website)
+- [x] get all information possible (store the whole website)
 - [x] get just links from the website
 
 #### Database Access
 - [x] make a simple database structure with as few fields as possible
-- make a database structure that inherantly prevents duplicate records while preserving travel data(unique together constraint on point_a, point_b -> node duplicates, but no edge duplicates)
+- [x] make a database structure that inherantly prevents duplicate records while preserving travel data(unique together constraint on point_a, point_b -> node duplicates, but no edge duplicates)
 
 ## Things I'm curious about that might impact flashgordon
 - Scrapy
