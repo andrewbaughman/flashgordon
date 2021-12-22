@@ -3,12 +3,12 @@ from lxml import html
 import json
 import time
 import signal
-from django.core.management.base import BaseCommand
 from csv import writer
 from itertools import islice
 import psycopg2
 import tldextract
 # import requests_cache DNS Caching decreased performance slightly, but might be helpful in the future. 
+
 
 # https://thispointer.com/python-how-to-append-a-new-row-to-an-existing-csv-file/
 def append_list_as_row(file_name, list_of_elem):
@@ -197,105 +197,114 @@ def first_unvisited():
 			conn.close()
 	return link
 
+def request_page(link):
+	signal.signal(signal.SIGALRM, alarm_handler)
+	signal.alarm(10)
+	try:
+		print("Now entering " + link['point_b'])
+		# response = self.session.get(link['point_b'])
+		response = requests.get(link['point_b'])
+		return response
+		signal.alarm(0)
+	except TimeOutException as ex:
+		print(ex)
+		""" update a link in the Link table """
+		sql = """UPDATE razorback_link SET visited=True WHERE point_b=%s RETURNING id;"""
+		conn = None
+		id = None
+		try:
+			conn = psycopg2.connect(dbname="lightning_db", user="flash", password="password")
+			cur = conn.cursor()
+			cur.execute(sql, [link['point_b']])
+			id = cur.fetchone()[0]
+			conn.commit()
+			cur.close()
+		except (Exception, psycopg2.DatabaseError) as error:
+			print(error)
+		finally:
+			if conn is not None:
+				conn.close()
+		return
+	except Exception as e:
+		signal.alarm(0)
+		print(str(e))
+		return
 
-class Command(BaseCommand):
+
+def __main__():
 	measurements = [['label', 'context', 'data']]
 	requests_attempted = 0
 	requests_succeeded = 0
-	session = requests.Session()
-	# session = requests_cache.CachedSession() DNS Caching
-	
-	def request_page(self, link):
-		signal.signal(signal.SIGALRM, alarm_handler)
-		signal.alarm(10)
-		try:
-			print("Now entering " + link['point_b'])
-			response = self.session.get(link['point_b'])
-			return response
-			signal.alarm(0)
-		except TimeOutException as ex:
-			print(ex)
-			""" update a link in the Link table """
-			sql = """UPDATE razorback_link SET visited=True WHERE point_b=%s RETURNING id;"""
-			conn = None
-			id = None
-			try:
-				conn = psycopg2.connect(dbname="lightning_db", user="flash", password="password")
-				cur = conn.cursor()
-				cur.execute(sql, [link['point_b']])
-				id = cur.fetchone()[0]
-				conn.commit()
-				cur.close()
-			except (Exception, psycopg2.DatabaseError) as error:
-				print(error)
-			finally:
-				if conn is not None:
-					conn.close()
-			return
-		except Exception as e:
-			signal.alarm(0)
-			print(str(e))
-			return
-	
-	def handle(self, *args, **options):
-		if (get_count() == 0):
-			x = int(input("how many urls do you want to seed? "))
-			y = x + 1
-			z = 1
-			while z < y:
-				url = ""
-				while not (url[0:7] == 'http://' or url[0:8] == 'https://'):
-					url = input("provide seed link #" + str(z) + ":")
-					if not (url[0:7] == 'http://' or url[0:8] == 'https://'):
-						print("NOTE: provide in http:// or https:// form")
-				insert_link([url, False, None])
-				z = z + 1
-		else:
-			print("resuming crawl.")
 
-		break_check = count_unvisited()
-		analytics_static_time = time.time()
-		analytics_dynamic_time = time.time()
-		while break_check > 0:
-			loop_start = time.time()
-			start = time.time()
-			link = first_unvisited()
-			link = {
-				'id': link[0],
-				'point_b': link[1],
-				'visited': link[2],
-				'point_a_id': link[3],
-				'content': link[4]
-			}
-			self.measurements.append(['model filter', {'code': 'Link.objects.filter(visited=False).first()'}, time.time() - start])
-			if link:
-				try:
-					url = link['point_b']
-					if not link['visited']:
-						start = time.time()
-						self.requests_attempted = self.requests_attempted + 1
-						response = self.request_page(link)
-						self.requests_succeeded = self.requests_succeeded + 1
-						self.measurements.append(['request_page', {'destination': link['point_b'], 'source': link['point_a_id']}, time.time() - start])
-						start = time.time()
-						new_links, content = parse_response(link, response)
-						self.measurements.append(['parse_response', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
-						start = time.time()
-						save_data(link, new_links, content)
-						self.measurements.append(['save_data', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
-					else:
-						print("link " + str(link['id']) + " was already visited. Skipping...")
-				except Exception as e:
-					break_check = count_unvisited()
-			else:
+	if (get_count() == 0):
+		x = int(input("how many urls do you want to seed? "))
+		y = x + 1
+		z = 1
+		while z < y:
+			url = ""
+			while not (url[0:7] == 'http://' or url[0:8] == 'https://'):
+				url = input("provide seed link #" + str(z) + ":")
+				if not (url[0:7] == 'http://' or url[0:8] == 'https://'):
+					print("NOTE: provide in http:// or https:// form")
+			insert_link([url, False, None])
+			z = z + 1
+	else:
+		print("resuming crawl.")
+
+	break_check = count_unvisited()
+	analytics_static_time = time.time()
+	analytics_dynamic_time = time.time()
+	while break_check > 0:
+		loop_start = time.time()
+		start = time.time()
+		link = first_unvisited()
+		link = {
+			'id': link[0],
+			'point_b': link[1],
+			'visited': link[2],
+			'point_a_id': link[3],
+			'content': link[4]
+		}
+		measurements.append(['model filter', {'code': 'Link.objects.filter(visited=False).first()'}, time.time() - start])
+		if link:
+			try:
+				url = link['point_b']
+				if not link['visited']:
+					start = time.time()
+					requests_attempted = requests_attempted + 1
+					response = request_page(link)
+					requests_succeeded = requests_succeeded + 1
+					measurements.append(['request_page', {'destination': link['point_b'], 'source': link['point_a_id']}, time.time() - start])
+					start = time.time()
+					new_links, content = parse_response(link, response)
+					measurements.append(['parse_response', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
+					start = time.time()
+					save_data(link, new_links, content)
+					measurements.append(['save_data', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
+				else:
+					print("link " + str(link['id']) + " was already visited. Skipping...")
+			except Exception as e:
 				break_check = count_unvisited()
-			self.measurements.append(['loop', {'link_object': link}, time.time() - loop_start])
-			if (time.time() - analytics_dynamic_time) > 10:
-				for measurement in self.measurements:
-					append_list_as_row('flashgordon_analytics.csv', measurement)
-					self.measurements = []
-				requests_per_second = self.requests_attempted / (time.time() - analytics_static_time)
-				append_list_as_row('flashgordon_analytics.csv', ['requests_per_second', {'requests_attempted': self.requests_attempted, 'requests_succeeded': self.requests_succeeded}, requests_per_second])
-				append_list_as_row('flashgordon_analytics.csv', ['request sucess ratio', {'requests_attempted': self.requests_attempted, 'requests_succeeded': self.requests_succeeded}, self.requests_succeeded / self.requests_attempted])
-				
-				analytics_dynamic_time = time.time()
+		else:
+			break_check = count_unvisited()
+		measurements.append(['loop', {'link_object': link}, time.time() - loop_start])
+		if (time.time() - analytics_dynamic_time) > 10:
+			for measurement in measurements:
+				append_list_as_row('flashgordon_analytics.csv', measurement)
+				measurements = []
+			requests_per_second = requests_attempted / (time.time() - analytics_static_time)
+			append_list_as_row('flashgordon_analytics.csv', ['requests_per_second', {'requests_attempted': requests_attempted, 'requests_succeeded': requests_succeeded}, requests_per_second])
+			append_list_as_row('flashgordon_analytics.csv', ['request sucess ratio', {'requests_attempted': requests_attempted, 'requests_succeeded': requests_succeeded}, requests_succeeded / requests_attempted])
+			
+			analytics_dynamic_time = time.time()
+
+
+# class Command(BaseCommand):
+# 	measurements = [['label', 'context', 'data']]
+# 	requests_attempted = 0
+# 	requests_succeeded = 0
+# 	session = requests.Session()
+# 	# session = requests_cache.CachedSession() DNS Caching
+
+
+__main__()
