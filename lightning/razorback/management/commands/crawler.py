@@ -105,10 +105,26 @@ def parse_response(link_obj, response):
 	print('Done parsing.')
 	return new_links, response.content
 
-def save_data(link_obj, new_links, content):
+def save_data(link, new_links, content):
 	print('Saving data...')
 	insert_link_list(new_links)
-	Link.objects.filter(point_b=link_obj.point_b).update(visited=True, content=content)
+	
+	""" update a link in the Link table """
+	sql = """UPDATE razorback_link SET visited=True, content=%s WHERE point_b=%s RETURNING id;"""
+	conn = None
+	id = None
+	try:
+		conn = psycopg2.connect(dbname="lightning_db", user="flash", password="password")
+		cur = conn.cursor()
+		cur.execute(sql, [content, link['point_b']])
+		id = cur.fetchone()[0]
+		conn.commit()
+		cur.close()
+	except (Exception, psycopg2.DatabaseError) as error:
+		print(error)
+	finally:
+		if conn is not None:
+			conn.close()
 	print('Done saving data.')
 
 class Command(BaseCommand):
@@ -172,7 +188,8 @@ class Command(BaseCommand):
 						new_links, content = parse_response(link, response)
 						self.measurements.append(['parse_response', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
 						start = time.time()
-						save_data(link, new_links, content)
+						# print(model_to_dict(link))
+						save_data(model_to_dict(link), new_links, content)
 						self.measurements.append(['save_data', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
 					else:
 						print("link " + str(link.id) + " was already visited. Skipping...")
