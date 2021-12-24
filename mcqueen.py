@@ -1,22 +1,11 @@
 import requests
 from lxml import html
-import json
-import time
 import signal
-from csv import writer
-from itertools import islice
 import psycopg2
-import tldextract
-from multiprocessing import Process
+import multiprocessing
+from multiprocessing import Process, Pool
 
 # import requests_cache DNS Caching decreased performance slightly, but might be helpful in the future. 
-
-
-# https://thispointer.com/python-how-to-append-a-new-row-to-an-existing-csv-file/
-def append_list_as_row(file_name, list_of_elem):
-	with open(file_name, 'a+', newline='') as write_obj:
-		csv_writer = writer(write_obj)
-		csv_writer.writerow(list_of_elem)
 
 def run_sql(sql, params=None):
 	""" Run any sql string on the lightning_db database"""
@@ -108,7 +97,11 @@ def parse_response(link, response):
 def save_data(link, new_links, content):
 	print('Saving data...')
 	insert_link_list(new_links)
-	run_sql("""UPDATE razorback_link SET visited=True, content=%s WHERE point_b=%s RETURNING id;""", [content, link['point_b']])
+	if link['point_a_id'] == None:
+		id = run_sql("""UPDATE razorback_link SET visited=TRUE, content=%s WHERE point_b=%s RETURNING id;""", [content, link['point_b']])
+	else:
+		id = run_sql("""UPDATE razorback_link SET visited=TRUE, content=%s WHERE point_b=%s AND point_a_id=%s RETURNING id;""", [content, link['point_b'], link['point_a_id']])
+	run_sql("""UPDATE razorback_link SET taken=FALSE WHERE id=%s RETURNING id;""", [id])
 	print('Done saving data.')
 
 def request_page(link):
@@ -122,20 +115,14 @@ def request_page(link):
 		signal.alarm(0)
 	except TimeOutException as ex:
 		print(ex)
-		run_sql("""UPDATE razorback_link SET visited=True WHERE point_b=%s RETURNING id;""", [link['point_b']])
+		run_sql("""UPDATE razorback_link SET visited=True WHERE point_b=%s AND point_a_id=%s RETURNING id;""", [link['point_b'], link['point_a_id']])
 	except Exception as e:
 		signal.alarm(0)
 		print(str(e))
 		return
 
-
-
-def main_loop():
-	request_succeeded = False
-	measurements = []
-	loop_start = time.time()
-	start = time.time()
-	link = run_sql("""SELECT * FROM razorback_link WHERE visited=False FETCH FIRST ROW ONLY;""")
+def main_loop(break_check):
+	link = run_sql("""SELECT * FROM razorback_link WHERE visited=FALSE AND taken=FALSE FETCH FIRST ROW ONLY;""")
 	link = {
 		'id': link[0],
 		'point_b': link[1],
@@ -143,38 +130,26 @@ def main_loop():
 		'point_a_id': link[3],
 		'content': link[4]
 	}
-	measurements.append(['model filter', {'code': 'Link.objects.filter(visited=False).first()'}, time.time() - start])
+	run_sql("""UPDATE razorback_link SET taken=TRUE WHERE id=%s RETURNING id;""", [link['id']])
 	if link:
 		try:
 			url = link['point_b']
 			if not link['visited']:
-				start = time.time()
 				response = request_page(link)
-				measurements.append(['request_page', {'destination': link['point_b'], 'source': link['point_a_id']}, time.time() - start])
-				if response.ok:
-					request_succeeded = True
-				start = time.time()
 				new_links, content = parse_response(link, response)
-				measurements.append(['parse_response', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
-				start = time.time()
 				save_data(link, new_links, content)
-				measurements.append(['save_data', {'link_object': link, 'new_links': len(new_links), 'content_length': len(content)}, time.time() - start])
 			else:
 				print("link " + str(link['id']) + " was already visited. Skipping...")
 		except Exception as e:
 			break_check = run_sql("""SELECT COUNT(*) FROM razorback_link WHERE visited=False;""")[0]
 	else:
 		break_check = run_sql("""SELECT COUNT(*) FROM razorback_link WHERE visited=False;""")[0]
-	measurements.append(['loop', {'link_object': link}, time.time() - loop_start])
-	return measurements, request_succeeded
+	return break_check
 	
 
+if __name__ == '__main__':
+	processes = []
 
-def __main__():
-	append_list_as_row('flashgordon_analytics.csv', ['label', 'context', 'data'])
-	requests_attempted = 0
-	requests_succeeded = 0
-	
 	if (run_sql("""SELECT COUNT(*) FROM razorback_link;""")[0] == 0):
 		x = int(input("how many urls do you want to seed? "))
 		y = x + 1
@@ -191,25 +166,15 @@ def __main__():
 		print("resuming crawl.")
 
 	break_check = run_sql("""SELECT COUNT(*) FROM razorback_link WHERE visited=False;""")[0]
-	analytics_static_time = time.time()
-	analytics_dynamic_time = time.time()
-	requests_succeeded = 0
-	measurements = []
 	while break_check > 0:
-		ext_measurements, request_succeeded = main_loop()
-		measurements.extend(ext_measurements)
-		if request_succeeded:
-			requests_succeeded = requests_succeeded + 1
+		# if len(processes) > 100:
+		# 	processes[-1].join()
+		# process = multiprocessing.Process(target=main_loop)
+		# processes.append(process)
+		# print(len(processes))
+		# process.start()
+		# break_check = 
 
-		if (time.time() - analytics_dynamic_time) > 10:
-			for measurement in measurements:
-				append_list_as_row('flashgordon_analytics.csv', measurement)
-				measurements = []
-
-			requests_per_second = requests_succeeded / (time.time() - analytics_static_time)
-			append_list_as_row('flashgordon_analytics.csv', ['requests_per_second', {'requests_attempted': requests_attempted, 'requests_succeeded': requests_succeeded}, requests_per_second])
-			
-			analytics_dynamic_time = time.time()
-
-
-__main__()
+		# pool=Pool(processes=30)
+		# break_check = pool.map(main_loop,[break_check])[0]
+		break_check= main_loop(break_check)
