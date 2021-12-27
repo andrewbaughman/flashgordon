@@ -4,6 +4,8 @@ import signal
 import psycopg2
 import multiprocessing
 from multiprocessing import Process, Pool
+import concurrent.futures
+import time
 
 # import requests_cache DNS Caching decreased performance slightly, but might be helpful in the future. 
 
@@ -62,7 +64,7 @@ def loc_third_slash(link):
 		return False
 
 def parse_response(link, response):
-	print('Parsing response...')
+	# print('Parsing response...')
 	tree = html.fromstring(response.content)
 	links_a = tree.xpath('//a/@href')
 	new_links = []
@@ -91,24 +93,24 @@ def parse_response(link, response):
 				new_links.append([appended_link, False, None])
 		else:
 			print(href)
-	print('Done parsing.')
+	# print('Done parsing.')
 	return new_links, response.content
 
 def save_data(link, new_links, content):
-	print('Saving data...')
+	# print('Saving data...')
 	insert_link_list(new_links)
 	if link['point_a_id'] == None:
 		id = run_sql("""UPDATE razorback_link SET visited=TRUE, content=%s WHERE point_b=%s RETURNING id;""", [content, link['point_b']])
 	else:
 		id = run_sql("""UPDATE razorback_link SET visited=TRUE, content=%s WHERE point_b=%s AND point_a_id=%s RETURNING id;""", [content, link['point_b'], link['point_a_id']])
 	run_sql("""UPDATE razorback_link SET taken=FALSE WHERE id=%s RETURNING id;""", [id])
-	print('Done saving data.')
+	# print('Done saving data.')
 
 def request_page(link):
 	signal.signal(signal.SIGALRM, alarm_handler)
 	signal.alarm(10)
 	try:
-		print("Now entering " + link['point_b'])
+		# print("Now entering " + link['point_b'])
 		# response = self.session.get(link['point_b'])
 		response = requests.get(link['point_b'])
 		return response
@@ -135,11 +137,14 @@ def main_loop(break_check):
 		try:
 			url = link['point_b']
 			if not link['visited']:
+				start = time.time()
 				response = request_page(link)
+				# print(f"{time.time() - start} seconds for requesting {link['point_b']}")
 				new_links, content = parse_response(link, response)
 				save_data(link, new_links, content)
 			else:
-				print("link " + str(link['id']) + " was already visited. Skipping...")
+				# print("link " + str(link['id']) + " was already visited. Skipping...")
+				pass
 		except Exception as e:
 			break_check = run_sql("""SELECT COUNT(*) FROM razorback_link WHERE visited=False;""")[0]
 	else:
@@ -166,15 +171,15 @@ if __name__ == '__main__':
 		print("resuming crawl.")
 
 	break_check = run_sql("""SELECT COUNT(*) FROM razorback_link WHERE visited=False;""")[0]
-	while break_check > 0:
-		# if len(processes) > 100:
-		# 	processes[-1].join()
-		# process = multiprocessing.Process(target=main_loop)
-		# processes.append(process)
-		# print(len(processes))
-		# process.start()
-		# break_check = 
+	# while break_check > 0:
+		# break_check= main_loop(break_check)
 
-		# pool=Pool(processes=30)
-		# break_check = pool.map(main_loop,[break_check])[0]
-		break_check= main_loop(break_check)
+	with concurrent.futures.ProcessPoolExecutor() as executor:
+		results = []
+
+		while break_check > 0:
+			time.sleep(0.2)
+			results.append(executor.submit(main_loop, [break_check]))
+			
+		for f in concurrent.futures.as_completed(results):
+			break_check = f.result()[0]
