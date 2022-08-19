@@ -81,7 +81,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'lightning_db',
-        'USER': 'flash',
+        'USER': 'andrew',
         'PASSWORD': 'password',
         'HOST': 'localhost',
         'PORT': '5432',
