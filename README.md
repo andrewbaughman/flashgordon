@@ -27,7 +27,7 @@ Any changes made to flashgordon should measurably improve its performance.
 3. Create role and database
   1. `sudo su - postgres`
   2. `psql`
-  3. `create role flash with login password ‘password’; grant all priveleges on database lighting_db to flash; alter database lighting_db owner to flash;`
+  3. `create role flash with login password ‘password’; grant all privileges on database lightning_db to flash; alter database lightning_db owner to flash;`
 4. Clone the repository
 5. `pip3 install -r requirements.txt`
 6. `pip3 install psycopg2` if it's not in the requirements
